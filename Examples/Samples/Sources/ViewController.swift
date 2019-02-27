@@ -228,6 +228,7 @@ class SampleListViewController: UIViewController, UITableViewDataSource, UITable
 
             // Initialize FloatingPanelController
             detailPanelVC = FloatingPanelController()
+            detailPanelVC.delegate = self
 
             // Initialize FloatingPanelController and add the view
             detailPanelVC.surfaceView.cornerRadius = 6.0
@@ -267,6 +268,8 @@ class SampleListViewController: UIViewController, UITableViewDataSource, UITable
         }
 
         switch currentMenu {
+        case .showDetail:
+            return ElasticPanelLayout()
         case .showRemovablePanel:
             return newCollection.verticalSizeClass == .compact ? RemovablePanelLandscapeLayout() :  RemovablePanelLayout()
         case .showIntrinsicView:
@@ -311,6 +314,26 @@ class SampleListViewController: UIViewController, UITableViewDataSource, UITable
         case .hidden: return nil
         }
     }
+}
+
+//class ElasticPanelLayout: FloatingPanelLayout {
+class ElasticPanelLayout: FloatingPanelIntrinsicLayout {
+    var initialPosition: FloatingPanelPosition = .half
+    var supportedPositions: Set<FloatingPanelPosition> {
+        return [.full, .half, .tip]
+    }
+
+    func insetFor(position: FloatingPanelPosition) -> CGFloat? {
+        switch position {
+        case .full:
+            return nil
+            //return 32.0
+        default:
+            return FloatingPanelDefaultLayout().insetFor(position: position)
+        }
+    }
+
+    var isElastic = true
 }
 
 class IntrinsicPanelLayout: FloatingPanelIntrinsicLayout { }
