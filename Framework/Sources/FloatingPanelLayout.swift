@@ -72,6 +72,9 @@ public protocol FloatingPanelLayout: class {
     ///
     /// Default is 0.3 at full position, otherwise 0.0.
     func backdropAlphaFor(position: FloatingPanelPosition) -> CGFloat
+
+
+    var isElastic: Bool { get }
 }
 
 public extension FloatingPanelLayout {
@@ -91,6 +94,10 @@ public extension FloatingPanelLayout {
 
     func backdropAlphaFor(position: FloatingPanelPosition) -> CGFloat {
         return position == .full ? 0.3 : 0.0
+    }
+
+    var isElastic: Bool {
+        return false
     }
 }
 
@@ -152,6 +159,8 @@ class FloatingPanelLayoutAdapter {
     private var tipConstraints: [NSLayoutConstraint] = []
     private var offConstraints: [NSLayoutConstraint] = []
     private var interactiveTopConstraint: NSLayoutConstraint?
+    private var bottomConstraint: NSLayoutConstraint?
+
 
     private var heightConstraint: NSLayoutConstraint?
 
@@ -182,7 +191,7 @@ class FloatingPanelLayoutAdapter {
         if supportedPositions.contains(.full) {
             switch layout {
             case is FloatingPanelIntrinsicLayout:
-                return surfaceView.superview!.bounds.height - surfaceView.bounds.height
+                return surfaceView.superview!.bounds.height - (intrinsicHeight + safeAreaInsets.bottom)
             case is FloatingPanelFullScreenLayout:
                 return fullInset
             default:
@@ -294,6 +303,11 @@ class FloatingPanelLayoutAdapter {
 
         fixedConstraints = surfaceConstraints + backdropConstraints
 
+        if layout.isElastic {
+            bottomConstraint = surfaceView.bottomAnchor.constraint(equalTo: vc.view.bottomAnchor,
+                                                                   constant: 0.0)
+        }
+
         // Flexible surface constraints for full, half, tip and off
         let topAnchor: NSLayoutYAxisAnchor = {
             if layout is FloatingPanelFullScreenLayout {
@@ -366,6 +380,22 @@ class FloatingPanelLayoutAdapter {
     func updateHeight() {
         guard let vc = vc else { return }
 
+        if layout is FloatingPanelIntrinsicLayout {
+            updateIntrinsicHeight()
+        }
+
+        defer {
+            if layout is FloatingPanelIntrinsicLayout {
+                NSLayoutConstraint.deactivate(fullConstraints)
+                fullConstraints = [
+                    surfaceView.topAnchor.constraint(equalTo: vc.layoutGuide.bottomAnchor,
+                                                     constant: -fullInset),
+                ]
+            }
+        }
+
+        guard layout.isElastic == false else { return }
+
         if let const = self.heightConstraint {
             NSLayoutConstraint.deactivate([const])
         }
@@ -374,7 +404,6 @@ class FloatingPanelLayoutAdapter {
 
         switch layout {
         case is FloatingPanelIntrinsicLayout:
-            updateIntrinsicHeight()
             heightConstraint = surfaceView.heightAnchor.constraint(equalToConstant: intrinsicHeight + safeAreaInsets.bottom)
         case is FloatingPanelFullScreenLayout:
             heightConstraint =  surfaceView.heightAnchor.constraint(equalTo: vc.view.heightAnchor,
@@ -388,14 +417,6 @@ class FloatingPanelLayoutAdapter {
         self.heightConstraint = heightConstraint
 
         surfaceView.bottomOverflow = vc.view.bounds.height + layout.topInteractionBuffer
-
-        if layout is FloatingPanelIntrinsicLayout {
-            NSLayoutConstraint.deactivate(fullConstraints)
-            fullConstraints = [
-                surfaceView.topAnchor.constraint(equalTo: vc.layoutGuide.bottomAnchor,
-                                                 constant: -fullInset),
-            ]
-        }
     }
 
     func updateInteractiveTopConstraint(diff: CGFloat, allowsTopBuffer: Bool) {
@@ -447,6 +468,9 @@ class FloatingPanelLayoutAdapter {
             self.interactiveTopConstraint = nil
         }
         NSLayoutConstraint.activate(fixedConstraints)
+        if let bottomConstraint = bottomConstraint {
+            NSLayoutConstraint.activate([bottomConstraint])
+        }
 
         if supportedPositions.union([.hidden]).contains(state) == false {
             state = layout.initialPosition

@@ -447,6 +447,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
     // Prevent stretching a view having a constraint to SafeArea.bottom in an overflow
     // from the full position because SafeArea is global in a screen.
     private func preserveContentVCLayoutIfNeeded() {
+        guard layoutAdapter.layout.isElastic == false else { return }
         // Must include topY
         if (surfaceView.frame.minY <= layoutAdapter.topY) {
             if !disabledBottomAutoLayout {
