@@ -59,7 +59,7 @@ public class FloatingPanelSurfaceView: UIView {
     /// The color of the surface border.
     public var borderWidth: CGFloat = 0.0  { didSet { setNeedsLayout() } }
 
-    private var backgroundView: UIView!
+    public var backgroundView: UIView!
     private var backgroundHeightConstraint: NSLayoutConstraint!
 
     private struct Default {
