@@ -178,6 +178,19 @@ class FloatingPanelLayoutAdapter {
         return supportedPositions
     }
 
+    func isTopMost(state: FloatingPanelPosition) -> Bool {
+        if supportedPositions.contains(.full) {
+            return state == .full
+        }
+        if supportedPositions.contains(.half) {
+            return state == .half
+        }
+        if supportedPositions.contains(.tip) {
+            return state == .tip
+        }
+        return false
+    }
+
     var topY: CGFloat {
         if supportedPositions.contains(.full) {
             switch layout {

@@ -91,7 +91,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
     }
 
     private func move(from: FloatingPanelPosition, to: FloatingPanelPosition, animated: Bool, completion: (() -> Void)? = nil) {
-        if to != .full {
+        if layoutAdapter.isTopMost(state: state) == false {
             lockScrollView()
         }
         tearDownActiveInteraction()
@@ -252,8 +252,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
 
             if belowTop {
                 // Scroll offset pinning
-                switch state {
-                case .full:
+                if layoutAdapter.isTopMost(state: state) {
                     if interactionInProgress {
                         log.debug("settle offset --", initialScrollOffset.y)
                         scrollView.setContentOffset(initialScrollOffset, animated: false)
@@ -269,7 +268,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
                             }
                         }
                     }
-                case .half, .tip:
+                } else {
                     guard scrollView.isDecelerating == false else {
                         // Don't fix the scroll offset in animating the panel to half and tip.
                         // It causes a buggy scrolling deceleration because `state` becomes
@@ -278,8 +277,6 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
                     }
                     // Fix the scroll offset in moving the panel from half and tip.
                     scrollView.contentOffset.y = initialScrollOffset.y
-                case .hidden:
-                    break
                 }
 
                 // Always hide a scroll indicator at the non-top.
@@ -291,7 +288,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
                 if interactionInProgress {
                     unlockScrollView()
                 } else {
-                    if state == .full, scrollView.contentOffset.y < 0, velocity.y > 0 {
+                    if layoutAdapter.isTopMost(state: state), scrollView.contentOffset.y < 0, velocity.y > 0 {
                         fitToBounds(scrollView: scrollView)
                         let translation = panGesture.translation(in: panGestureRecognizer.view!.superview)
                         startInteraction(with: translation, at: location)
@@ -367,8 +364,8 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
         }
 
         guard
-            state == .full,                   // When not .full, don't scroll.
-            interactionInProgress == false,   // When interaction already in progress, don't scroll.
+            layoutAdapter.isTopMost(state: state), // When not top most(i.e. .full), don't scroll.
+            interactionInProgress == false,        // When interaction already in progress, don't scroll.
             surfaceView.frame.minY == layoutAdapter.topY
         else {
             return false
@@ -411,12 +408,11 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
         // So here just preserve the current state if needed.
         log.debug("panningBegan -- location = \(location.y)")
         initialLocation = location
-        switch state {
-        case .full:
+        if layoutAdapter.isTopMost(state: state) {
             if let scrollView = scrollView {
                 initialScrollFrame = scrollView.frame
             }
-        default:
+        } else {
             if let scrollView = scrollView {
                 initialScrollOffset = scrollView.contentOffset
             }
@@ -565,7 +561,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
         guard interactionInProgress == false else { return }
 
         initialFrame = surfaceView.frame
-        if state == .full, let scrollView = scrollView {
+        if layoutAdapter.isTopMost(state: state), let scrollView = scrollView {
             if grabberAreaFrame.contains(location) {
                 initialScrollOffset = scrollView.contentOffset
             } else {
@@ -594,7 +590,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
         interactionInProgress = false
 
         // Prevent to keep a scroll view indicator visible at the half/tip position
-        if targetPosition != .full {
+        if layoutAdapter.isTopMost(state: targetPosition) == false {
             lockScrollView()
         }
 
@@ -641,7 +637,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
 
         stopScrollDeceleration = false
         // Don't unlock scroll view in animating view when presentation layer != model layer
-        if targetPosition == .full {
+        if layoutAdapter.isTopMost(state: targetPosition) {
             unlockScrollView()
         }
     }
@@ -907,7 +903,7 @@ class FloatingPanel: NSObject, UIGestureRecognizerDelegate, UIScrollViewDelegate
             let targetOffset = targetContentOffset.pointee
             userScrollViewDelegate?.scrollViewWillEndDragging?(scrollView, withVelocity: velocity, targetContentOffset: targetContentOffset)
             // Stop scrolling on tip and half
-            if state != .full, targetOffset == targetContentOffset.pointee {
+            if layoutAdapter.isTopMost(state: state) == false, targetOffset == targetContentOffset.pointee {
                 targetContentOffset.pointee.y = scrollView.contentOffset.y
             }
         }
